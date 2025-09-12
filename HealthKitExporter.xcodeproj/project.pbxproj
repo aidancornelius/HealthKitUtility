@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		2D75E2DF /* NetworkStreamingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D75E2E0 /* NetworkStreamingManager.swift */; };
+		441359C92E74149500BE8EEC /* HealthDataLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 441359C82E74149500BE8EEC /* HealthDataLogView.swift */; };
+		441359CB2E7414E500BE8EEC /* HealthDataMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 441359CA2E7414E500BE8EEC /* HealthDataMonitor.swift */; };
 		444B0EE02E5E786700DEE173 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 444B0EDF2E5E786700DEE173 /* WidgetKit.framework */; };
 		444B0EE22E5E786700DEE173 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 444B0EE12E5E786700DEE173 /* SwiftUI.framework */; };
 		444B0EEF2E5E786800DEE173 /* HealthKitExporterWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 444B0EDD2E5E786700DEE173 /* HealthKitExporterWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -52,6 +54,8 @@
 
 /* Begin PBXFileReference section */
 		2D75E2E0 /* NetworkStreamingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkStreamingManager.swift; sourceTree = "<group>"; };
+		441359C82E74149500BE8EEC /* HealthDataLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDataLogView.swift; sourceTree = "<group>"; };
+		441359CA2E7414E500BE8EEC /* HealthDataMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDataMonitor.swift; sourceTree = "<group>"; };
 		444B0EDD2E5E786700DEE173 /* HealthKitExporterWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HealthKitExporterWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		444B0EDF2E5E786700DEE173 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		444B0EE12E5E786700DEE173 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -162,6 +166,7 @@
 			children = (
 				A1000004 /* ContentView.swift */,
 				A1000014 /* ExportView.swift */,
+				441359C82E74149500BE8EEC /* HealthDataLogView.swift */,
 				A1000016 /* DataTypeSelectionView.swift */,
 				A1000018 /* DateRangePickerView.swift */,
 				A1000026 /* LiveStreamView.swift */,
@@ -174,6 +179,7 @@
 			isa = PBXGroup;
 			children = (
 				A1000010 /* HealthDataExporter.swift */,
+				441359CA2E7414E500BE8EEC /* HealthDataMonitor.swift */,
 				A1000020 /* ExportManager.swift */,
 				A1000024 /* LiveStreamManager.swift */,
 				2D75E2E0 /* NetworkStreamingManager.swift */,
@@ -315,9 +321,11 @@
 				A1000011 /* HealthDataModels.swift in Sources */,
 				A1000013 /* ExportView.swift in Sources */,
 				A1000015 /* DataTypeSelectionView.swift in Sources */,
+				441359C92E74149500BE8EEC /* HealthDataLogView.swift in Sources */,
 				A1000017 /* DateRangePickerView.swift in Sources */,
 				A1000019 /* ExportManager.swift in Sources */,
 				A1000023 /* LiveStreamManager.swift in Sources */,
+				441359CB2E7414E500BE8EEC /* HealthDataMonitor.swift in Sources */,
 				2D75E2DF /* NetworkStreamingManager.swift in Sources */,
 				A1000025 /* LiveStreamView.swift in Sources */,
 				5B35C219 /* NetworkStreamView.swift in Sources */,
@@ -515,13 +523,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = HealthKitExporter/HealthKitExporter.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_ASSET_PATHS = "\"HealthKitExporter/Preview Content\"";
 				DEVELOPMENT_TEAM = HK6R36PLNR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HealthKitExporter/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HealthData;
+				INFOPLIST_KEY_CFBundleDisplayName = Anima;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "This app exports your health data for testing purposes in development apps.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "This app imports test data to the simulator's HealthKit database for development testing.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
@@ -551,13 +559,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = HealthKitExporter/HealthKitExporter.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 9;
 				DEVELOPMENT_ASSET_PATHS = "\"HealthKitExporter/Preview Content\"";
 				DEVELOPMENT_TEAM = HK6R36PLNR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HealthKitExporter/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HealthData;
+				INFOPLIST_KEY_CFBundleDisplayName = Anima;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "This app exports your health data for testing purposes in development apps.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "This app imports test data to the simulator's HealthKit database for development testing.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;

@@ -27,6 +27,8 @@ struct ExportedHealthBundle: Codable {
     let exerciseTime: [ExerciseTimeSample]?
     let bodyTemperature: [BodyTemperatureSample]?
     let menstrualFlow: [MenstrualFlowSample]?
+    let mindfulMinutes: [MindfulMinutesSample]?
+    let stateOfMind: [StateOfMindSample]?
     
     var sampleCount: Int {
         var count = 0
@@ -42,6 +44,8 @@ struct ExportedHealthBundle: Codable {
         count += exerciseTime?.count ?? 0
         count += bodyTemperature?.count ?? 0
         count += menstrualFlow?.count ?? 0
+        count += mindfulMinutes?.count ?? 0
+        count += stateOfMind?.count ?? 0
         return count
     }
 }
@@ -136,6 +140,21 @@ struct RespiratorySample: Codable {
     let value: Double // breaths per minute
 }
 
+struct MindfulMinutesSample: Codable {
+    let date: Date
+    let endDate: Date
+    let duration: Double // minutes
+    let source: String
+}
+
+struct StateOfMindSample: Codable {
+    let date: Date
+    let valence: Double // -1 to 1 (unpleasant to pleasant)
+    let arousal: Double // -1 to 1 (low to high energy)
+    let labels: [String] // e.g., ["happy", "excited", "calm"]
+    let source: String
+}
+
 struct OxygenSample: Codable {
     let date: Date
     let value: Double // percentage
@@ -161,6 +180,8 @@ enum HealthDataType: String, CaseIterable {
     case exerciseTime = "Exercise time"
     case bodyTemperature = "Body temperature"
     case menstrualFlow = "Menstrual flow"
+    case mindfulMinutes = "Mindful minutes"
+    case stateOfMind = "State of mind"
     
     var icon: String {
         switch self {
@@ -176,12 +197,14 @@ enum HealthDataType: String, CaseIterable {
         case .exerciseTime: return "timer"
         case .bodyTemperature: return "thermometer.medium"
         case .menstrualFlow: return "drop.circle"
+        case .mindfulMinutes: return "brain.head.profile"
+        case .stateOfMind: return "face.smiling"
         }
     }
     
     var isEnhanced: Bool {
         switch self {
-        case .respiratoryRate, .bloodOxygen, .skinTemperature, .bodyTemperature, .menstrualFlow:
+        case .respiratoryRate, .bloodOxygen, .skinTemperature, .bodyTemperature, .menstrualFlow, .stateOfMind:
             return true
         default:
             return false
@@ -443,7 +466,7 @@ struct SyntheticDataGenerator {
     ) -> ExportedHealthBundle {
         var rng = SeededRandomGenerator(seed: seed)
         let calendar = Calendar.current
-        let days = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 7
+        _ = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 7
         
         // Generate or modify data based on manipulation type
         switch manipulation {
@@ -490,7 +513,9 @@ struct SyntheticDataGenerator {
             wheelchairActivity: nil,
             exerciseTime: generateExerciseTimeData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
             bodyTemperature: generateBodyTemperatureData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
-            menstrualFlow: includeMenstrualData ? generateMenstrualData(startDate: startDate, endDate: endDate, rng: &rng) : nil
+            menstrualFlow: includeMenstrualData ? generateMenstrualData(startDate: startDate, endDate: endDate, rng: &rng) : nil,
+            mindfulMinutes: nil,
+            stateOfMind: nil
         )
     }
     
@@ -522,7 +547,9 @@ struct SyntheticDataGenerator {
             wheelchairActivity: bundle.wheelchairActivity ?? (Bool.random(using: &rng) ? generateWheelchairData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng) : nil),
             exerciseTime: bundle.exerciseTime ?? generateExerciseTimeData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
             bodyTemperature: bundle.bodyTemperature ?? generateBodyTemperatureData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
-            menstrualFlow: bundle.menstrualFlow ?? (includeMenstrualData ? generateMenstrualData(startDate: startDate, endDate: endDate, rng: &rng) : nil)
+            menstrualFlow: bundle.menstrualFlow ?? (includeMenstrualData ? generateMenstrualData(startDate: startDate, endDate: endDate, rng: &rng) : nil),
+            mindfulMinutes: bundle.mindfulMinutes,
+            stateOfMind: bundle.stateOfMind
         )
     }
     
@@ -554,10 +581,12 @@ struct SyntheticDataGenerator {
                 wheelchairActivity: wheelchairData, // Add wheelchair data
                 exerciseTime: bundle.exerciseTime,
                 bodyTemperature: bundle.bodyTemperature,
-                menstrualFlow: includeMenstrualData ? bundle.menstrualFlow : nil
+                menstrualFlow: includeMenstrualData ? bundle.menstrualFlow : nil,
+                mindfulMinutes: bundle.mindfulMinutes,
+                stateOfMind: bundle.stateOfMind
             )
         } else {
-            var bundle = generateCompleteBundle(preset: preset, startDate: startDate, endDate: endDate, includeMenstrualData: includeMenstrualData, rng: &rng)
+            let bundle = generateCompleteBundle(preset: preset, startDate: startDate, endDate: endDate, includeMenstrualData: includeMenstrualData, rng: &rng)
             return ExportedHealthBundle(
                 exportDate: bundle.exportDate,
                 startDate: bundle.startDate,
@@ -574,7 +603,9 @@ struct SyntheticDataGenerator {
                 wheelchairActivity: wheelchairData, // Add wheelchair data
                 exerciseTime: bundle.exerciseTime,
                 bodyTemperature: bundle.bodyTemperature,
-                menstrualFlow: includeMenstrualData ? bundle.menstrualFlow : nil
+                menstrualFlow: includeMenstrualData ? bundle.menstrualFlow : nil,
+                mindfulMinutes: bundle.mindfulMinutes,
+                stateOfMind: bundle.stateOfMind
             )
         }
     }
@@ -607,7 +638,6 @@ struct SyntheticDataGenerator {
     private static func generateActivityData(preset: GenerationPreset, startDate: Date, endDate: Date, rng: inout SeededRandomGenerator) -> [ActivitySample] {
         var samples: [ActivitySample] = []
         var currentDate = startDate
-        let calendar = Calendar.current
         
         while currentDate < endDate {
             let endHour = currentDate.addingTimeInterval(3600)

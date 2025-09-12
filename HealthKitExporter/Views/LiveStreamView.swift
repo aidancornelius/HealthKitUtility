@@ -13,6 +13,20 @@ struct LiveStreamView: View {
     @State private var showingFilePicker = false
     @State private var errorMessage: String?
     
+    // Data type toggles
+    @State private var generateHeartRate = true
+    @State private var generateHRV = true
+    @State private var generateSteps = true
+    @State private var generateCalories = true
+    @State private var generateSleep = false
+    @State private var generateWorkouts = false
+    @State private var generateRespiratory = false
+    @State private var generateBloodOxygen = false
+    @State private var generateMindfulMinutes = false
+    @State private var generateStateOfMind = false
+    @State private var generateBodyTemp = false
+    @State private var generateMenstrual = false
+    
     var body: some View {
         NavigationStack {
             Form {
@@ -53,6 +67,58 @@ struct LiveStreamView: View {
                             Label("Load source data", systemImage: "doc.badge.arrow.up")
                         }
                     }
+                }
+                
+                // Data Type Selection Section
+                Section("Data types to generate") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Core metrics
+                        Text("Core metrics")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            ToggleChip(title: "Heart rate", isOn: $generateHeartRate, icon: "heart.fill", color: .red)
+                            ToggleChip(title: "HRV", isOn: $generateHRV, icon: "waveform.path.ecg", color: .pink)
+                            ToggleChip(title: "Steps", isOn: $generateSteps, icon: "figure.walk", color: .orange)
+                            ToggleChip(title: "Calories", isOn: $generateCalories, icon: "flame.fill", color: .orange)
+                        }
+                        
+                        Divider()
+                        
+                        // Activity metrics
+                        Text("Activity & wellness")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                        
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            ToggleChip(title: "Sleep", isOn: $generateSleep, icon: "bed.double.fill", color: .indigo)
+                            ToggleChip(title: "Workouts", isOn: $generateWorkouts, icon: "figure.run", color: .green)
+                            ToggleChip(title: "Mindful", isOn: $generateMindfulMinutes, icon: "brain.head.profile", color: .purple)
+                            ToggleChip(title: "Mood", isOn: $generateStateOfMind, icon: "face.smiling", color: .blue)
+                        }
+                        
+                        // Enhanced metrics
+                        if exportManager.isSimulator || exportManager.overrideModeEnabled {
+                            Divider()
+                            
+                            Text("Enhanced metrics")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.primary)
+                            
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                                ToggleChip(title: "Respiratory", isOn: $generateRespiratory, icon: "wind", color: .cyan)
+                                ToggleChip(title: "Blood O₂", isOn: $generateBloodOxygen, icon: "drop.fill", color: .blue)
+                                ToggleChip(title: "Body temp", isOn: $generateBodyTemp, icon: "thermometer", color: .yellow)
+                                ToggleChip(title: "Menstrual", isOn: $generateMenstrual, icon: "drop.circle", color: .pink)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .disabled(liveStreamManager.isStreaming)
                 }
                 
                 // Streaming Configuration Section
@@ -98,6 +164,32 @@ struct LiveStreamView: View {
                             Text("5 minutes").tag(300.0)
                         }
                         .pickerStyle(.menu)
+                    }
+                    .disabled(liveStreamManager.isStreaming)
+                    
+                    // Quick presets
+                    HStack {
+                        Text("Quick presets:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Button("All") {
+                            setAllToggles(true)
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                        
+                        Button("Core only") {
+                            setCoreOnly()
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                        
+                        Button("None") {
+                            setAllToggles(false)
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
                     }
                     .disabled(liveStreamManager.isStreaming)
                 }
@@ -277,8 +369,52 @@ struct LiveStreamView: View {
             liveStreamManager.sourceBundle = exportManager.lastExportedBundle
         }
         
+        // Configure what to generate
+        liveStreamManager.generateHeartRate = generateHeartRate
+        liveStreamManager.generateHRV = generateHRV
+        liveStreamManager.generateSteps = generateSteps
+        liveStreamManager.generateCalories = generateCalories
+        liveStreamManager.generateSleep = generateSleep
+        liveStreamManager.generateWorkouts = generateWorkouts
+        liveStreamManager.generateRespiratory = generateRespiratory
+        liveStreamManager.generateBloodOxygen = generateBloodOxygen
+        liveStreamManager.generateMindfulMinutes = generateMindfulMinutes
+        liveStreamManager.generateStateOfMind = generateStateOfMind
+        liveStreamManager.generateBodyTemp = generateBodyTemp
+        liveStreamManager.generateMenstrual = generateMenstrual
+        
         liveStreamManager.startStreaming()
         errorMessage = nil
+    }
+    
+    private func setAllToggles(_ value: Bool) {
+        generateHeartRate = value
+        generateHRV = value
+        generateSteps = value
+        generateCalories = value
+        generateSleep = value
+        generateWorkouts = value
+        generateRespiratory = value
+        generateBloodOxygen = value
+        generateMindfulMinutes = value
+        generateStateOfMind = value
+        generateBodyTemp = value
+        generateMenstrual = value
+    }
+    
+    private func setCoreOnly() {
+        generateHeartRate = true
+        generateHRV = true
+        generateSteps = true
+        generateCalories = true
+        generateSleep = false
+        generateWorkouts = false
+        generateRespiratory = false
+        generateBloodOxygen = false
+        generateMindfulMinutes = false
+        generateStateOfMind = false
+        generateBodyTemp = false
+        generateMenstrual = false
     }
     
     private func loadSourceData(_ url: URL) {
@@ -301,6 +437,37 @@ struct LiveStreamView: View {
     private func averageHRV(from bundle: ExportedHealthBundle) -> Double {
         guard !bundle.hrv.isEmpty else { return 0 }
         return bundle.hrv.map(\.value).reduce(0, +) / Double(bundle.hrv.count)
+    }
+}
+
+// MARK: - Toggle Chip Component
+
+struct ToggleChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        Button(action: { isOn.toggle() }) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(isOn ? .white : color)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(isOn ? .white : .primary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isOn ? color : Color(UIColor.tertiarySystemFill))
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 

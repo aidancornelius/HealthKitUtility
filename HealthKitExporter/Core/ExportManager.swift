@@ -227,7 +227,9 @@ class ExportManager: ObservableObject {
             wheelchairActivity: transposedWheelchair,
             exerciseTime: transposedExercise,
             bodyTemperature: transposedBodyTemp,
-            menstrualFlow: transposedMenstrual
+            menstrualFlow: transposedMenstrual,
+            mindfulMinutes: bundle.mindfulMinutes,
+            stateOfMind: bundle.stateOfMind
         )
     }
     
@@ -422,7 +424,9 @@ class ExportManager: ObservableObject {
             wheelchairActivity: transformedWheelchairActivity,
             exerciseTime: transformedExerciseTime,
             bodyTemperature: transformedBodyTemperature,
-            menstrualFlow: transformedMenstrualFlow
+            menstrualFlow: transformedMenstrualFlow,
+            mindfulMinutes: bundle.mindfulMinutes,
+            stateOfMind: bundle.stateOfMind
         )
     }
     

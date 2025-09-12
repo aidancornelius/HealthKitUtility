@@ -57,17 +57,23 @@ struct ContentView: View {
                     .tag(exportManager.overrideModeEnabled ? 3 : 2)
             }
             
+            HealthDataLogView()
+                .tabItem {
+                    Label("Monitor", systemImage: "waveform.path.ecg")
+                }
+                .tag(exportManager.overrideModeEnabled ? 4 : (exportManager.isSimulator ? 3 : 2))
+            
             NetworkStreamView(liveStreamManager: liveStreamManager)
                 .tabItem {
                     Label("Network stream", systemImage: "wifi.router")
                 }
-                .tag(exportManager.overrideModeEnabled ? 4 : (exportManager.isSimulator ? 3 : 2))
+                .tag(exportManager.overrideModeEnabled ? 5 : (exportManager.isSimulator ? 4 : 3))
             
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: exportManager.overrideModeEnabled ? "exclamationmark.gear" : "gear")
                 }
-                .tag(exportManager.overrideModeEnabled ? 5 : (exportManager.isSimulator ? 4 : 3))
+                .tag(exportManager.overrideModeEnabled ? 6 : (exportManager.isSimulator ? 5 : 4))
         }
         .task {
             if !exportManager.isAuthorized {

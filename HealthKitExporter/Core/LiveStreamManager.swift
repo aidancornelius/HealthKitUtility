@@ -39,6 +39,20 @@ class LiveStreamManager: ObservableObject {
     @Published var sourceBundle: ExportedHealthBundle?
     @Published var generateWheelchairData = false // Track if wheelchair data should be generated
     
+    // Data type generation toggles
+    @Published var generateHeartRate = true
+    @Published var generateHRV = true
+    @Published var generateSteps = true
+    @Published var generateCalories = true
+    @Published var generateSleep = false
+    @Published var generateWorkouts = false
+    @Published var generateRespiratory = false
+    @Published var generateBloodOxygen = false
+    @Published var generateMindfulMinutes = false
+    @Published var generateStateOfMind = false
+    @Published var generateBodyTemp = false
+    @Published var generateMenstrual = false
+    
     // Network streaming
     @MainActor private lazy var networkManager = NetworkStreamingManager()
     
@@ -224,11 +238,11 @@ class LiveStreamManager: ObservableObject {
         
         do {
             let now = Date()
-            let heartRateValue = generateHeartRate(at: now)
-            let hrvValue = generateHRV(at: now)
+            var samplesGenerated = 0
             
             // Generate and save heart rate sample
-            if let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate) {
+            if generateHeartRate, let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate) {
+                let heartRateValue = generateHeartRate(at: now)
                 let heartRateQuantity = HKQuantity(unit: HKUnit.count().unitDivided(by: .minute()), 
                                                  doubleValue: heartRateValue)
                 let heartRateSample = HKQuantitySample(
@@ -239,10 +253,13 @@ class LiveStreamManager: ObservableObject {
                 )
                 
                 try await saveSample(heartRateSample)
+                lastGeneratedValues["Heart Rate"] = heartRateValue
+                samplesGenerated += 1
             }
             
             // Generate and save HRV sample
-            if let hrvType = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
+            if generateHRV, let hrvType = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
+                let hrvValue = generateHRV(at: now)
                 let hrvQuantity = HKQuantity(unit: HKUnit.secondUnit(with: .milli), 
                                            doubleValue: hrvValue)
                 let hrvSample = HKQuantitySample(
@@ -253,6 +270,97 @@ class LiveStreamManager: ObservableObject {
                 )
                 
                 try await saveSample(hrvSample)
+                lastGeneratedValues["HRV"] = hrvValue
+                samplesGenerated += 1
+            }
+            
+            // Generate steps if enabled
+            if generateSteps, let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) {
+                let stepCount = Double.random(in: 100...500) // Steps per interval
+                let stepQuantity = HKQuantity(unit: HKUnit.count(), doubleValue: stepCount)
+                
+                let stepSample = HKCumulativeQuantitySample(
+                    type: stepType,
+                    quantity: stepQuantity,
+                    start: now.addingTimeInterval(-streamingInterval),
+                    end: now
+                )
+                
+                try await saveSample(stepSample)
+                lastGeneratedValues["Steps"] = stepCount
+                samplesGenerated += 1
+            }
+            
+            // Generate calories if enabled
+            if generateCalories, let calorieType = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) {
+                let calories = Double.random(in: 5...30) // kcal per interval
+                let calorieQuantity = HKQuantity(unit: HKUnit.kilocalorie(), doubleValue: calories)
+                
+                let calorieSample = HKCumulativeQuantitySample(
+                    type: calorieType,
+                    quantity: calorieQuantity,
+                    start: now.addingTimeInterval(-streamingInterval),
+                    end: now
+                )
+                
+                try await saveSample(calorieSample)
+                lastGeneratedValues["Calories"] = calories
+                samplesGenerated += 1
+            }
+            
+            // Generate mindful minutes if enabled
+            if generateMindfulMinutes, let mindfulType = HKCategoryType.categoryType(forIdentifier: .mindfulSession) {
+                // Generate a mindful session occasionally (20% chance)
+                if Double.random(in: 0...1) < 0.2 {
+                    let duration = Double.random(in: 5...15) * 60 // 5-15 minutes in seconds
+                    let startTime = now.addingTimeInterval(-duration)
+                    
+                    let mindfulSample = HKCategorySample(
+                        type: mindfulType,
+                        value: HKCategoryValue.notApplicable.rawValue,
+                        start: startTime,
+                        end: now
+                    )
+                    
+                    try await saveSample(mindfulSample)
+                    lastGeneratedValues["Mindful"] = duration / 60
+                    samplesGenerated += 1
+                }
+            }
+            
+            // Generate state of mind if enabled (iOS 18+)
+            if generateStateOfMind {
+                if #available(iOS 18.0, *) {
+                    // Generate mood occasionally (30% chance)
+                    if Double.random(in: 0...1) < 0.3 {
+                        let valence = Double.random(in: -1...1)
+                        
+                        // Pick a random label based on valence
+                        let label: HKStateOfMind.Label
+                        if valence > 0.5 {
+                            label = [.happy, .excited, .joyful, .grateful, .content].randomElement()!
+                        } else if valence > 0 {
+                            label = [.calm, .peaceful, .relieved, .confident].randomElement()!
+                        } else if valence > -0.5 {
+                            label = [.indifferent, .surprised, .worried].randomElement()!
+                        } else {
+                            label = [.sad, .anxious, .stressed, .worried, .frustrated].randomElement()!
+                        }
+                        
+                        // Create state of mind object
+                        let stateOfMind = HKStateOfMind(
+                            date: now,
+                            kind: .momentaryEmotion,
+                            valence: valence,
+                            labels: [label],
+                            associations: [.health]
+                        )
+                        
+                        try await healthStore.save(stateOfMind)
+                        lastGeneratedValues["Mood"] = valence
+                        samplesGenerated += 1
+                    }
+                }
             }
             
             // Generate wheelchair data if in wheelchair mode
@@ -287,25 +395,24 @@ class LiveStreamManager: ObservableObject {
                     }
                     
                     lastGeneratedValues["Pushes"] = pushCount
-                    samplesGeneratedThisHour += 2 // Additional samples for wheelchair
-                    totalSamplesGenerated += 2
+                    samplesGenerated += 2 // wheelchair push + distance
                 }
             }
             
             // Update tracking
-            samplesGeneratedThisHour += 2 // HR + HRV
-            totalSamplesGenerated += 2
-            lastGeneratedValues["Heart Rate"] = heartRateValue
-            lastGeneratedValues["HRV"] = hrvValue
+            samplesGeneratedThisHour += samplesGenerated
+            totalSamplesGenerated += samplesGenerated
             
             // Send data over network if connected
-            let healthPacket = HealthDataPacket(
-                timestamp: now,
-                heartRate: heartRateValue,
-                hrv: hrvValue,
-                scenario: currentScenario.rawValue
-            )
-            networkManager.sendHealthData(healthPacket)
+            if let hr = lastGeneratedValues["Heart Rate"], let hrv = lastGeneratedValues["HRV"] {
+                let healthPacket = HealthDataPacket(
+                    timestamp: now,
+                    heartRate: hr,
+                    hrv: hrv,
+                    scenario: currentScenario.rawValue
+                )
+                networkManager.sendHealthData(healthPacket)
+            }
             
             let elapsed = Date().timeIntervalSince(backgroundTaskQueue.isEmpty ? Date() : Date().addingTimeInterval(-30))
             let rate = totalSamplesGenerated > 0 ? Double(totalSamplesGenerated) / max(elapsed / 60, 1) : 0

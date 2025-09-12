@@ -52,7 +52,8 @@ class HealthDataExporter: ObservableObject {
             HKObjectType.quantityType(forIdentifier: .distanceWheelchair)!,
             HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!,
             HKObjectType.quantityType(forIdentifier: .bodyTemperature)!,
-            HKObjectType.categoryType(forIdentifier: .menstrualFlow)!
+            HKObjectType.categoryType(forIdentifier: .menstrualFlow)!,
+            HKObjectType.categoryType(forIdentifier: .mindfulSession)!
         ]
         
         // Add enhanced metrics if available
@@ -69,6 +70,12 @@ class HealthDataExporter: ObservableObject {
             if let tempType = HKQuantityType.quantityType(forIdentifier: .appleSleepingWristTemperature) {
                 typesToRead.insert(tempType)
             }
+        }
+        
+        if #available(iOS 18.0, *) {
+            // State of mind uses a special type in iOS 18+
+            let stateOfMindType = HKSampleType.stateOfMindType()
+            typesToRead.insert(stateOfMindType)
         }
         
         // If in simulator, also request write permissions for importing
@@ -88,12 +95,19 @@ class HealthDataExporter: ObservableObject {
                 HKObjectType.quantityType(forIdentifier: .distanceWheelchair)!,
                 // Note: appleExerciseTime is read-only, cannot write to it
                 HKObjectType.quantityType(forIdentifier: .bodyTemperature)!,
-                HKObjectType.categoryType(forIdentifier: .menstrualFlow)!
+                HKObjectType.categoryType(forIdentifier: .menstrualFlow)!,
+                HKObjectType.categoryType(forIdentifier: .mindfulSession)!
             ]
             
             // Note: respiratoryRate and oxygenSaturation might be read-only depending on iOS version
             // Note: appleExerciseTime is read-only (calculated by Apple)
             // Note: appleSleepingWristTemperature is read-only, cannot write to it
+            
+            // Add state of mind write permission for iOS 18+
+            if #available(iOS 18.0, *) {
+                let stateOfMindType = HKSampleType.stateOfMindType()
+                typesToWrite.insert(stateOfMindType)
+            }
         }
         
         return try await withCheckedThrowingContinuation { continuation in
@@ -141,6 +155,8 @@ class HealthDataExporter: ObservableObject {
         var exerciseTime: [ExerciseTimeSample]? = nil
         var bodyTemperature: [BodyTemperatureSample]? = nil
         var menstrualFlow: [MenstrualFlowSample]? = nil
+        let mindfulMinutes: [MindfulMinutesSample]? = nil
+        let stateOfMind: [StateOfMindSample]? = nil
         
         let totalSteps = dataTypes.count
         var currentStep = 0
@@ -247,7 +263,9 @@ class HealthDataExporter: ObservableObject {
             wheelchairActivity: wheelchairActivity,
             exerciseTime: exerciseTime,
             bodyTemperature: bodyTemperature,
-            menstrualFlow: menstrualFlow
+            menstrualFlow: menstrualFlow,
+            mindfulMinutes: mindfulMinutes,
+            stateOfMind: stateOfMind
         )
     }
     
@@ -508,7 +526,7 @@ class HealthDataExporter: ObservableObject {
                     continuation.resume(throwing: error)
                 } else {
                     let flowSamples = (samples as? [HKCategorySample] ?? []).compactMap { sample -> MenstrualFlowSample? in
-                        guard let value = HKCategoryValueMenstrualFlow(rawValue: sample.value) else { return nil }
+                        guard let value = HKCategoryValueVaginalBleeding(rawValue: sample.value) else { return nil }
                         
                         let flowLevel: MenstrualFlowLevel
                         switch value {
@@ -891,7 +909,7 @@ class HealthDataExporter: ObservableObject {
         let type = HKCategoryType.categoryType(forIdentifier: .menstrualFlow)!
         
         let hkSamples = samples.compactMap { sample -> HKCategorySample? in
-            let value: HKCategoryValueMenstrualFlow
+            let value: HKCategoryValueVaginalBleeding
             switch sample.flowLevel {
             case .unspecified: value = .unspecified
             case .light: value = .light
