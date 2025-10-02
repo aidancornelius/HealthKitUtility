@@ -9,7 +9,7 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
-// Local copy of attributes for widget - needs to match main app
+/// Live Activity attributes for network streaming (matches main app definition).
 struct NetworkStreamActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var isConnected: Bool
@@ -33,6 +33,13 @@ struct NetworkStreamActivityAttributes: ActivityAttributes {
     var mode: String
 }
 
+/// Live Activity widget for displaying network streaming status.
+///
+/// Shows network streaming progress with an airport departure/arrival theme:
+/// - Flight number and gate information
+/// - Connection status and device name
+/// - Total samples transmitted
+/// - Real-time health metrics
 struct NetworkStreamActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NetworkStreamActivityAttributes.self) { context in

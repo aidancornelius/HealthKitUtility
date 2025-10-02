@@ -10,6 +10,19 @@ import HealthKit
 
 // MARK: - Exported Data Bundle
 
+/// A complete bundle of exported health data from HealthKit.
+///
+/// This structure contains all supported health metrics exported from HealthKit,
+/// formatted for serialisation to JSON. The format matches the Stillness app's
+/// internal data structure for compatibility.
+///
+/// ## Topics
+/// ### Sample Collections
+/// - ``heartRate``
+/// - ``hrv``
+/// - ``activity``
+/// - ``sleep``
+/// - ``workouts``
 struct ExportedHealthBundle: Codable {
     let exportDate: Date
     let startDate: Date
@@ -52,15 +65,22 @@ struct ExportedHealthBundle: Codable {
 
 // MARK: - Sample Types (matching Stillness)
 
+/// A heart rate measurement in beats per minute (BPM).
 struct HeartRateSample: Codable {
     let date: Date
-    let value: Double // BPM
+    /// Heart rate in beats per minute (BPM)
+    let value: Double
     let source: String
 }
 
+/// A heart rate variability (HRV) measurement using SDNN.
+///
+/// HRV is measured as the standard deviation of NN intervals (SDNN) in milliseconds.
+/// Higher values generally indicate better cardiovascular fitness and lower stress.
 struct HRVSample: Codable {
     let date: Date
-    let value: Double // milliseconds (SDNN)
+    /// HRV value in milliseconds (SDNN)
+    let value: Double
     let source: String
 }
 
@@ -117,10 +137,12 @@ struct SleepSample: Codable {
     let source: String
 }
 
+/// Sleep stage categories recognised by HealthKit.
 enum SleepStage: String, CaseIterable, Codable {
     case awake = "awake"
     case light = "light"
     case deep = "deep"
+    /// Rapid eye movement (REM) sleep
     case rem = "rem"
     case unknown = "unknown"
 }
@@ -147,11 +169,18 @@ struct MindfulMinutesSample: Codable {
     let source: String
 }
 
+/// A logged state of mind entry (iOS 18+).
+///
+/// State of mind captures emotional state using valence (pleasant/unpleasant)
+/// and arousal (energy level), along with descriptive labels.
 struct StateOfMindSample: Codable {
     let date: Date
-    let valence: Double // -1 to 1 (unpleasant to pleasant)
-    let arousal: Double // -1 to 1 (low to high energy)
-    let labels: [String] // e.g., ["happy", "excited", "calm"]
+    /// Emotional valence from -1 (unpleasant) to 1 (pleasant)
+    let valence: Double
+    /// Energy level from -1 (low) to 1 (high)
+    let arousal: Double
+    /// Descriptive labels such as "happy", "excited", "calm"
+    let labels: [String]
     let source: String
 }
 
@@ -167,6 +196,10 @@ struct TemperatureSample: Codable {
 
 // MARK: - Data Type Selection
 
+/// All health data types supported by HealthKit Exporter.
+///
+/// Use this enum to select which data types to export, import, or generate.
+/// Some types are marked as "enhanced" and may require specific device capabilities.
 enum HealthDataType: String, CaseIterable {
     case heartRate = "Heart rate"
     case hrv = "Heart rate variability"
@@ -202,6 +235,7 @@ enum HealthDataType: String, CaseIterable {
         }
     }
     
+    /// Whether this data type requires enhanced device capabilities (e.g., Apple Watch Series 8+).
     var isEnhanced: Bool {
         switch self {
         case .respiratoryRate, .bloodOxygen, .skinTemperature, .bodyTemperature, .menstrualFlow, .stateOfMind:
@@ -210,7 +244,8 @@ enum HealthDataType: String, CaseIterable {
             return false
         }
     }
-    
+
+    /// Whether this data type is an accessibility feature (e.g., wheelchair activity).
     var isAccessibilityFeature: Bool {
         switch self {
         case .wheelchairActivity:
@@ -223,12 +258,20 @@ enum HealthDataType: String, CaseIterable {
 
 // MARK: - Date Transformation
 
+/// Transforms dates from one time range to another while preserving relative timing.
+///
+/// Used to transpose historical health data to current dates, maintaining the same
+/// patterns and intervals between samples.
 struct DateTransformation: Codable {
     let originalStartDate: Date
     let originalEndDate: Date
     let targetStartDate: Date
     let targetEndDate: Date
-    
+
+    /// Transforms a date from the original range to the target range.
+    ///
+    /// The transformation maintains relative position within the time range,
+    /// so a date at 25% through the original range will be at 25% through the target range.
     func transform(_ date: Date) -> Date {
         let originalInterval = originalEndDate.timeIntervalSince(originalStartDate)
         let targetInterval = targetEndDate.timeIntervalSince(targetStartDate)
@@ -242,11 +285,20 @@ struct DateTransformation: Codable {
 
 // MARK: - Pattern Generation
 
+/// Pattern transformation types for generating synthetic health data.
+///
+/// These patterns modify existing health data to create variations for testing.
+/// Stress-related patterns affect both heart rate and HRV in physiologically appropriate ways.
 enum PatternType: String, CaseIterable {
+    /// Keep similar patterns with minor random variations
     case similar = "Similar pattern"
+    /// Increase stress indicators (higher HR, lower HRV)
     case amplified = "Amplified (more stress)"
+    /// Decrease stress indicators (lower HR, higher HRV)
     case reduced = "Reduced (less stress)"
+    /// Flip high and low stress periods
     case inverted = "Inverted pattern"
+    /// Add significant random variations
     case random = "Random variation"
     
     var description: String {
@@ -262,6 +314,10 @@ enum PatternType: String, CaseIterable {
 
 // MARK: - Generation Presets
 
+/// Presets for generating synthetic health data with different stress profiles.
+///
+/// Each preset defines physiologically appropriate ranges for various health metrics.
+/// Note that higher HRV indicates *lower* stress, while higher heart rate indicates *higher* stress.
 enum GenerationPreset: String, CaseIterable {
     case lowerStress = "Lower stress"
     case normal = "Normal results"
@@ -286,6 +342,7 @@ enum GenerationPreset: String, CaseIterable {
         }
     }
     
+    /// HRV range in milliseconds. Higher values indicate lower stress.
     var hrvRange: ClosedRange<Double> {
         switch self {
         case .lowerStress: return 50...100  // Higher HRV = less stress
@@ -316,10 +373,15 @@ enum GenerationPreset: String, CaseIterable {
 
 // MARK: - Data Manipulation Options
 
+/// Data manipulation strategies for generating synthetic health data.
 enum DataManipulation: String, CaseIterable {
+    /// Preserve existing data without changes
     case keepOriginal = "Keep original"
+    /// Add synthetic data only for categories that are empty
     case generateMissing = "Generate missing data"
+    /// Replace all data with smoothed synthetic versions
     case smoothReplace = "Smooth & replace"
+    /// Replace step data with wheelchair push data
     case accessibilityMode = "Accessibility mode"
     
     var description: String {
@@ -332,7 +394,15 @@ enum DataManipulation: String, CaseIterable {
     }
 }
 
+/// Applies pattern transformations to health data samples.
 struct PatternGenerator {
+    /// Applies a pattern transformation to heart rate samples.
+    ///
+    /// - Parameters:
+    ///   - pattern: The pattern type to apply
+    ///   - samples: The original heart rate samples
+    ///   - seed: Random seed for reproducible generation
+    /// - Returns: Transformed heart rate samples
     static func apply(pattern: PatternType, to samples: [HeartRateSample], seed: Int = 0) -> [HeartRateSample] {
         var rng = SeededRandomGenerator(seed: seed)
         
@@ -394,6 +464,13 @@ struct PatternGenerator {
         }
     }
     
+    /// Applies a pattern transformation to HRV samples.
+    ///
+    /// - Parameters:
+    ///   - pattern: The pattern type to apply
+    ///   - samples: The original HRV samples
+    ///   - seed: Random seed for reproducible generation
+    /// - Returns: Transformed HRV samples
     static func apply(pattern: PatternType, to samples: [HRVSample], seed: Int = 0) -> [HRVSample] {
         var rng = SeededRandomGenerator(seed: seed)
         
@@ -454,7 +531,22 @@ struct PatternGenerator {
 
 // MARK: - Synthetic Data Generator
 
+/// Generates realistic synthetic health data for testing.
+///
+/// The generator creates physiologically plausible health data based on presets
+/// and manipulation strategies. All generation is deterministic when using the same seed.
 struct SyntheticDataGenerator {
+    /// Generates a complete health data bundle.
+    ///
+    /// - Parameters:
+    ///   - preset: The stress/health profile to generate
+    ///   - manipulation: How to handle existing data
+    ///   - startDate: Start of the date range
+    ///   - endDate: End of the date range
+    ///   - existingBundle: Optional existing data to modify
+    ///   - seed: Random seed for reproducible results
+    ///   - includeMenstrualData: Whether to include menstrual cycle data
+    /// - Returns: A complete health data bundle
     static func generateHealthData(
         preset: GenerationPreset,
         manipulation: DataManipulation,
@@ -851,14 +943,18 @@ struct SyntheticDataGenerator {
 
 // MARK: - Seeded Random Generator
 
+/// A seeded random number generator for reproducible random sequences.
+///
+/// Implements Swift's `RandomNumberGenerator` protocol using a simple
+/// linear congruential generator (LCG) algorithm.
 struct SeededRandomGenerator: RandomNumberGenerator {
     private var state: UInt64
-    
+
     init(seed: Int) {
         self.state = UInt64(seed)
         if state == 0 { state = 1 }
     }
-    
+
     mutating func next() -> UInt64 {
         state = state &* 2862933555777941757 &+ 3037000493
         return state

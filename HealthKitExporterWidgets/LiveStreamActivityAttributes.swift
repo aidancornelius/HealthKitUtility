@@ -8,6 +8,10 @@
 import Foundation
 import ActivityKit
 
+/// Live Activity attributes for displaying live health data generation status.
+///
+/// Used by the Live Activity widget to show real-time streaming progress
+/// on the Dynamic Island and lock screen.
 struct LiveStreamActivityAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
         var isStreaming: Bool

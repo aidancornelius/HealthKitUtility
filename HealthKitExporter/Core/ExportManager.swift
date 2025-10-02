@@ -9,6 +9,15 @@ import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Main coordinator for health data export, import, and synthetic data generation.
+///
+/// This class orchestrates all health data operations including:
+/// - Exporting data from HealthKit
+/// - Importing data into HealthKit (simulator only)
+/// - Generating synthetic health data with various patterns
+/// - Transforming dates to transpose historical data to current dates
+///
+/// All operations are performed on the main actor for UI updates.
 @MainActor
 class ExportManager: ObservableObject {
     @Published var selectedDataTypes: Set<HealthDataType> = [.heartRate, .hrv, .activity]
@@ -72,7 +81,11 @@ class ExportManager: ObservableObject {
     }
     
     // MARK: - Export Original Data
-    
+
+    /// Exports health data from HealthKit for the selected date range and data types.
+    ///
+    /// - Returns: A bundle containing the exported health data
+    /// - Throws: HealthKit errors if data cannot be accessed
     func exportOriginalData() async throws -> ExportedHealthBundle {
         let bundle = try await exporter.exportData(
             from: sourceStartDate,
@@ -90,6 +103,13 @@ class ExportManager: ObservableObject {
         try await exporter.importData(bundle)
     }
     
+    /// Transposes all dates in a bundle to end at the current time.
+    ///
+    /// This is useful for taking historical health data and shifting it to current dates
+    /// while maintaining the same duration and relative timing between samples.
+    ///
+    /// - Parameter bundle: The bundle with historical dates
+    /// - Returns: A new bundle with dates transposed to end now
     func transposeBundleDatesToToday(_ bundle: ExportedHealthBundle) -> ExportedHealthBundle {
         let originalDuration = bundle.endDate.timeIntervalSince(bundle.startDate)
         let newEndDate = Date()
@@ -235,6 +255,12 @@ class ExportManager: ObservableObject {
     
     // MARK: - Generate Synthetic Data
     
+    /// Generates synthetic health data based on current settings.
+    ///
+    /// Uses the selected preset, manipulation strategy, and date range to create
+    /// realistic synthetic health data. Can generate from scratch or modify existing data.
+    ///
+    /// - Returns: A bundle containing the generated synthetic data
     func generateSyntheticData() async -> ExportedHealthBundle {
         isGenerating = true
         generationProgress = 0

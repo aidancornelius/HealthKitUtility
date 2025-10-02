@@ -14,6 +14,16 @@ import AVFoundation
 import CoreLocation
 import BackgroundTasks
 
+/// Manages continuous background generation of health data at regular intervals.
+///
+/// This manager generates realistic health data in real-time based on scenarios like stress,
+/// workout, or sleep patterns. It uses various techniques to maintain background execution:
+/// - Silent audio playback
+/// - Location monitoring
+/// - Background task scheduling
+/// - Live Activity updates
+///
+/// Generated data is saved directly to HealthKit and optionally broadcast over the network.
 @MainActor
 class LiveStreamManager: ObservableObject {
     private let healthStore = HKHealthStore()
@@ -78,7 +88,14 @@ class LiveStreamManager: ObservableObject {
     }
     
     // MARK: - Streaming Control
-    
+
+    /// Starts continuous health data generation.
+    ///
+    /// Begins generating health data samples at the configured interval based on the
+    /// selected scenario. Automatically starts a Live Activity and enables background
+    /// processing to continue generation when the app is backgrounded.
+    ///
+    /// Requires ``sourceBundle`` to be set before calling.
     func startStreaming() {
         guard !isStreaming else { return }
         guard sourceBundle != nil else {
@@ -129,6 +146,9 @@ class LiveStreamManager: ObservableObject {
         }
     }
     
+    /// Stops continuous health data generation.
+    ///
+    /// Ends the streaming session, stops background processing, and dismisses the Live Activity.
     func stopStreaming() {
         guard isStreaming else { return }
         
@@ -729,20 +749,82 @@ class LiveStreamManager: ObservableObject {
     }
     
     // MARK: - Live Activity Management
-    
+
     private func startLiveActivity() {
-        // Live Activity support disabled for now - can be enabled later
-        print("Live Activity would start here")
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            print("Live Activities not enabled")
+            return
+        }
+
+        let attributes = LiveStreamActivityAttributes(
+            startTime: Date(),
+            interval: streamingInterval
+        )
+
+        let initialState = LiveStreamActivityAttributes.ContentState(
+            isStreaming: true,
+            scenario: currentScenario.rawValue,
+            totalSamples: 0,
+            lastHeartRate: nil,
+            lastHRV: nil,
+            streamingStatus: "Starting...",
+            detailedStatus: "Initializing streaming...",
+            backgroundProcessingActive: backgroundProcessingActive,
+            lastUpdateTime: Date()
+        )
+
+        do {
+            liveActivity = try Activity.request(
+                attributes: attributes,
+                content: ActivityContent(state: initialState, staleDate: nil)
+            )
+            print("🚀 Started Live Activity")
+        } catch {
+            print("❌ Failed to start Live Activity: \(error)")
+        }
     }
-    
+
     private func updateLiveActivity() {
-        // Live Activity support disabled for now - can be enabled later
-        print("Live Activity would update here")
+        guard let activity = liveActivity else { return }
+
+        let updatedState = LiveStreamActivityAttributes.ContentState(
+            isStreaming: isStreaming,
+            scenario: currentScenario.rawValue,
+            totalSamples: totalSamplesGenerated,
+            lastHeartRate: lastGeneratedValues["Heart Rate"],
+            lastHRV: lastGeneratedValues["HRV"],
+            streamingStatus: streamingStatus,
+            detailedStatus: detailedStatus,
+            backgroundProcessingActive: backgroundProcessingActive,
+            lastUpdateTime: Date()
+        )
+
+        Task {
+            await activity.update(ActivityContent(state: updatedState, staleDate: nil))
+        }
     }
-    
+
     private func endLiveActivity() {
-        // Live Activity support disabled for now - can be enabled later
-        print("Live Activity would end here")
+        guard let activity = liveActivity else { return }
+
+        let finalState = LiveStreamActivityAttributes.ContentState(
+            isStreaming: false,
+            scenario: currentScenario.rawValue,
+            totalSamples: totalSamplesGenerated,
+            lastHeartRate: lastGeneratedValues["Heart Rate"],
+            lastHRV: lastGeneratedValues["HRV"],
+            streamingStatus: "Completed",
+            detailedStatus: "Streaming session ended",
+            backgroundProcessingActive: false,
+            lastUpdateTime: Date()
+        )
+
+        Task {
+            await activity.end(ActivityContent(state: finalState, staleDate: nil), dismissalPolicy: .after(Date().addingTimeInterval(5)))
+            print("✅ Ended Live Activity")
+        }
+
+        liveActivity = nil
     }
     
     deinit {
@@ -750,31 +832,40 @@ class LiveStreamManager: ObservableObject {
         streamingTimer?.invalidate()
         hourlyResetTimer?.invalidate()
         keepAliveTimer?.invalidate()
-        
+
         audioPlayer?.stop()
         locationManager.stopMonitoringSignificantLocationChanges()
-        
+
         Task { @MainActor in
             if backgroundTask != .invalid {
                 UIApplication.shared.endBackgroundTask(backgroundTask)
             }
-            
+
             if secondaryBackgroundTask != .invalid {
                 UIApplication.shared.endBackgroundTask(secondaryBackgroundTask)
             }
-            
+
             // End all queued background tasks
             for taskId in backgroundTaskQueue {
                 UIApplication.shared.endBackgroundTask(taskId)
             }
         }
-        
-        // Live Activity cleanup would go here if enabled
+
+        // End Live Activity if still active
+        if let activity = liveActivity {
+            Task {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
     }
 }
 
 // MARK: - Streaming Scenarios
 
+/// Health data generation scenarios with different physiological patterns.
+///
+/// Each scenario applies realistic variations to heart rate and HRV based on
+/// common physiological states and activities.
 enum StreamingScenario: String, CaseIterable {
     case normal = "Normal patterns"
     case lowStress = "Low stress"

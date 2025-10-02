@@ -9,6 +9,16 @@
 import Foundation
 import HealthKit
 
+/// Core HealthKit integration for reading and writing health data.
+///
+/// This class handles all HealthKit operations including:
+/// - Requesting user authorisation for health data access
+/// - Exporting health data from HealthKit to JSON
+/// - Importing JSON data into HealthKit (simulator only)
+///
+/// ## Platform Behaviour
+/// - **Physical Device**: Can export data, cannot import (HealthKit write restrictions)
+/// - **Simulator**: Can both export and import data for testing
 @MainActor
 class HealthDataExporter: ObservableObject {
     private let healthStore = HKHealthStore()
@@ -32,7 +42,13 @@ class HealthDataExporter: ObservableObject {
     }
     
     // MARK: - Authorization
-    
+
+    /// Requests user permission to access HealthKit data.
+    ///
+    /// This method requests read access to all supported health data types.
+    /// On simulator, it also requests write permissions for importing test data.
+    ///
+    /// - Throws: ``ExportError/healthKitUnavailable`` if HealthKit is not available on this device
     func requestAuthorization() async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             throw ExportError.healthKitUnavailable
@@ -126,7 +142,18 @@ class HealthDataExporter: ObservableObject {
     }
     
     // MARK: - Data Export
-    
+
+    /// Exports health data from HealthKit for a specified date range.
+    ///
+    /// This method queries HealthKit for all requested data types within the date range
+    /// and returns them as a structured bundle ready for JSON serialisation.
+    ///
+    /// - Parameters:
+    ///   - startDate: The start of the date range to export
+    ///   - endDate: The end of the date range to export
+    ///   - dataTypes: Which health data types to include in the export
+    /// - Returns: A bundle containing all exported health data
+    /// - Throws: Various HealthKit errors if data cannot be accessed
     func exportData(
         from startDate: Date,
         to endDate: Date,
@@ -558,6 +585,14 @@ class HealthDataExporter: ObservableObject {
     
     // MARK: - Data Import (Simulator Only)
     
+    /// Imports health data into HealthKit from a bundle.
+    ///
+    /// This method writes health data to HealthKit, useful for populating the simulator
+    /// with test data. Import is only available when running in the simulator due to
+    /// HealthKit's write restrictions on physical devices.
+    ///
+    /// - Parameter bundle: The health data bundle to import
+    /// - Throws: ``ExportError/exportFailed(_:)`` if not running in simulator
     func importData(_ bundle: ExportedHealthBundle) async throws {
         guard isSimulator else {
             throw ExportError.exportFailed("Import is only available in simulator")
@@ -1010,9 +1045,13 @@ class HealthDataExporter: ObservableObject {
 
 // MARK: - Error Types
 
+/// Errors that can occur during HealthKit export or import operations.
 enum ExportError: LocalizedError {
+    /// HealthKit is not available on this device
     case healthKitUnavailable
+    /// User denied access to HealthKit data
     case authorizationDenied
+    /// Export or import operation failed with a specific reason
     case exportFailed(String)
     
     var errorDescription: String? {

@@ -11,7 +11,7 @@ import SwiftUI
 import HealthKit
 import ActivityKit
 
-// Local NetworkStreamActivityAttributes for Live Activity
+/// Live Activity attributes for network streaming display.
 struct NetworkStreamActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var isConnected: Bool
@@ -35,6 +35,14 @@ struct NetworkStreamActivityAttributes: ActivityAttributes {
     var mode: String
 }
 
+/// Manages real-time streaming of health data over local network.
+///
+/// This manager enables streaming health data between physical devices and the simulator:
+/// - **Server Mode (Device)**: Broadcasts generated health data over local network
+/// - **Client Mode (Simulator)**: Discovers devices and receives health data for import
+///
+/// Uses Bonjour for service discovery and TCP for reliable data transmission.
+/// Automatically saves received data to HealthKit on the simulator.
 @MainActor
 class NetworkStreamingManager: ObservableObject {
     private var listener: NWListener?
@@ -62,7 +70,10 @@ class NetworkStreamingManager: ObservableObject {
     private var sharedFlightNumber: String?
     
     // MARK: - Server Mode (Device)
-    
+
+    /// Triggers the local network permission prompt if not already granted.
+    ///
+    /// Call this before starting the server to ensure the user has granted permission.
     func requestLocalNetworkPermission() {
         // Trigger local network permission prompt by attempting a brief connection
         // This will show the permission dialog if not already granted
@@ -81,6 +92,11 @@ class NetworkStreamingManager: ObservableObject {
         }
     }
     
+    /// Starts the server to broadcast health data over the local network.
+    ///
+    /// The server advertises itself via Bonjour and accepts incoming connections
+    /// from clients (typically the simulator). Once connected, it can send health
+    /// data packets that will be automatically saved to the client's HealthKit.
     func startServer() {
         let parameters = NWParameters.tcp
         parameters.allowLocalEndpointReuse = true
@@ -236,6 +252,11 @@ class NetworkStreamingManager: ObservableObject {
         sendHealthData(testPacket)
     }
     
+    /// Sends a health data packet to the connected client.
+    ///
+    /// The packet is JSON-encoded and sent with a length header for proper framing.
+    ///
+    /// - Parameter data: The health data packet to send
     func sendHealthData(_ data: HealthDataPacket) {
         guard let connection = connection, isClientConnected else { return }
         
@@ -271,7 +292,10 @@ class NetworkStreamingManager: ObservableObject {
     }
     
     // MARK: - Client Mode (Simulator)
-    
+
+    /// Starts discovering available health data servers on the local network.
+    ///
+    /// Discovered devices will be added to ``discoveredDevices`` for the user to select.
     func startDiscovery() {
         let parameters = NWParameters()
         parameters.includePeerToPeer = false
@@ -318,6 +342,12 @@ class NetworkStreamingManager: ObservableObject {
         streamingStatus = "Discovery stopped"
     }
     
+    /// Connects to a discovered device to receive health data.
+    ///
+    /// Once connected, health data packets will be automatically received and
+    /// saved to HealthKit on the simulator.
+    ///
+    /// - Parameter device: The device to connect to
     func connectToDevice(_ device: DiscoveredDevice) {
         let parameters = NWParameters.tcp
         parameters.includePeerToPeer = false
@@ -805,6 +835,7 @@ class NetworkStreamingManager: ObservableObject {
 
 // MARK: - Supporting Types
 
+/// A discovered device advertising health data over the network.
 struct DiscoveredDevice: Identifiable, Hashable {
     let id = UUID()
     let name: String
@@ -822,6 +853,7 @@ struct DiscoveredDevice: Identifiable, Hashable {
     }
 }
 
+/// A packet of health data sent over the network.
 struct HealthDataPacket: Codable {
     let timestamp: Date
     let heartRate: Double?

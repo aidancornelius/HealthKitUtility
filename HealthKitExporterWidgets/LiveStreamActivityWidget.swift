@@ -9,6 +9,13 @@ import SwiftUI
 import WidgetKit
 import ActivityKit
 
+/// Live Activity widget for displaying real-time health data generation.
+///
+/// Provides a Dynamic Island and lock screen interface showing:
+/// - Current streaming scenario
+/// - Latest heart rate and HRV values
+/// - Total samples generated
+/// - Background processing status
 struct LiveStreamActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: LiveStreamActivityAttributes.self) { context in

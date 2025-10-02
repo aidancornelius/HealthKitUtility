@@ -11,6 +11,7 @@ import Combine
 
 // MARK: - Log Entry Model
 
+/// A logged event representing a change to HealthKit data.
 struct HealthDataLogEntry: Identifiable, Equatable {
     let id = UUID()
     let timestamp: Date
@@ -55,6 +56,12 @@ struct HealthDataLogEntry: Identifiable, Equatable {
 
 // MARK: - Health Data Monitor
 
+/// Monitors HealthKit for real-time changes and logs all data modifications.
+///
+/// This class sets up observer queries for various health data types and logs
+/// all changes (additions, updates, deletions) to provide visibility into
+/// HealthKit activity. Useful for debugging and verifying that data is being
+/// written correctly.
 @MainActor
 class HealthDataMonitor: ObservableObject {
     private let healthStore = HKHealthStore()
@@ -68,7 +75,13 @@ class HealthDataMonitor: ObservableObject {
     private let maxLogEntries = 500
     
     // MARK: - Start Monitoring
-    
+
+    /// Starts monitoring HealthKit for changes across all supported data types.
+    ///
+    /// Sets up observer queries that will trigger whenever data is added, updated,
+    /// or deleted in HealthKit. New entries are logged to ``logEntries``.
+    ///
+    /// - Throws: ``ExportError/healthKitUnavailable`` if HealthKit is not available
     func startMonitoring() async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
             throw ExportError.healthKitUnavailable

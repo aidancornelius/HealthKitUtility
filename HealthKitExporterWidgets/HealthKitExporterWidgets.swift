@@ -8,6 +8,11 @@
 import SwiftUI
 import WidgetKit
 
+/// Widget bundle containing all Live Activity widgets for HealthKit Exporter.
+///
+/// Includes:
+/// - ``LiveStreamActivityWidget``: Real-time health data generation display
+/// - ``NetworkStreamActivityWidget``: Network streaming status display
 @main
 struct HealthKitExporterWidgets: WidgetBundle {
     var body: some Widget {
