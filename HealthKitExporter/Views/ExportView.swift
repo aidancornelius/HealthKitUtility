@@ -189,11 +189,11 @@ struct ExportSummarySection: View {
             if !bundle.workouts.isEmpty {
                 LabeledContent("Workouts", value: "\(bundle.workouts.count)")
             }
-            
-            if let restingHR = bundle.restingHeartRate {
-                LabeledContent("Resting HR", value: "\(Int(restingHR)) bpm")
+
+            if !bundle.restingHeartRate.isEmpty {
+                LabeledContent("Resting HR", value: "\(bundle.restingHeartRate.count) samples")
             }
-            
+
             if let respiratory = bundle.respiratoryRate, !respiratory.isEmpty {
                 LabeledContent("Respiratory rate", value: "\(respiratory.count) samples")
             }

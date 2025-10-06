@@ -32,7 +32,7 @@ struct ExportedHealthBundle: Codable {
     let activity: [ActivitySample]
     let sleep: [SleepSample]
     let workouts: [WorkoutSample]
-    let restingHeartRate: Double?
+    let restingHeartRate: [RestingHeartRateSample]
     let respiratoryRate: [RespiratorySample]?
     let bloodOxygen: [OxygenSample]?
     let skinTemperature: [TemperatureSample]?
@@ -42,7 +42,7 @@ struct ExportedHealthBundle: Codable {
     let menstrualFlow: [MenstrualFlowSample]?
     let mindfulMinutes: [MindfulMinutesSample]?
     let stateOfMind: [StateOfMindSample]?
-    
+
     var sampleCount: Int {
         var count = 0
         count += heartRate.count
@@ -50,6 +50,7 @@ struct ExportedHealthBundle: Codable {
         count += activity.count
         count += sleep.count
         count += workouts.count
+        count += restingHeartRate.count
         count += respiratoryRate?.count ?? 0
         count += bloodOxygen?.count ?? 0
         count += skinTemperature?.count ?? 0
@@ -69,6 +70,17 @@ struct ExportedHealthBundle: Codable {
 struct HeartRateSample: Codable {
     let date: Date
     /// Heart rate in beats per minute (BPM)
+    let value: Double
+    let source: String
+}
+
+/// A resting heart rate measurement in beats per minute (BPM).
+///
+/// Resting heart rate is typically calculated by the device based on heart rate measurements
+/// taken during periods of inactivity.
+struct RestingHeartRateSample: Codable {
+    let date: Date
+    /// Resting heart rate in beats per minute (BPM)
     let value: Double
     let source: String
 }
@@ -588,7 +600,7 @@ struct SyntheticDataGenerator {
         let activity = generateActivityData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng)
         let sleep = generateSleepData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng)
         let workouts = generateWorkoutData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng)
-        
+
         return ExportedHealthBundle(
             exportDate: Date(),
             startDate: startDate,
@@ -598,7 +610,7 @@ struct SyntheticDataGenerator {
             activity: activity,
             sleep: sleep,
             workouts: workouts,
-            restingHeartRate: Double.random(in: 50...70, using: &rng),
+            restingHeartRate: generateRestingHeartRateData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
             respiratoryRate: generateRespiratoryData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
             bloodOxygen: generateOxygenData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
             skinTemperature: generateTemperatureData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
@@ -622,7 +634,7 @@ struct SyntheticDataGenerator {
         guard let bundle = bundle else {
             return generateCompleteBundle(preset: preset, startDate: startDate, endDate: endDate, includeMenstrualData: includeMenstrualData, rng: &rng)
         }
-        
+
         return ExportedHealthBundle(
             exportDate: Date(),
             startDate: startDate,
@@ -632,7 +644,7 @@ struct SyntheticDataGenerator {
             activity: bundle.activity.isEmpty ? generateActivityData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng) : bundle.activity,
             sleep: bundle.sleep.isEmpty ? generateSleepData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng) : bundle.sleep,
             workouts: bundle.workouts.isEmpty ? generateWorkoutData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng) : bundle.workouts,
-            restingHeartRate: bundle.restingHeartRate ?? Double.random(in: 50...70, using: &rng),
+            restingHeartRate: bundle.restingHeartRate.isEmpty ? generateRestingHeartRateData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng) : bundle.restingHeartRate,
             respiratoryRate: bundle.respiratoryRate ?? generateRespiratoryData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
             bloodOxygen: bundle.bloodOxygen ?? generateOxygenData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
             skinTemperature: bundle.skinTemperature ?? generateTemperatureData(preset: preset, startDate: startDate, endDate: endDate, rng: &rng),
@@ -706,7 +718,7 @@ struct SyntheticDataGenerator {
     private static func generateHeartRateData(preset: GenerationPreset, startDate: Date, endDate: Date, rng: inout SeededRandomGenerator) -> [HeartRateSample] {
         var samples: [HeartRateSample] = []
         var currentDate = startDate
-        
+
         while currentDate < endDate {
             let value = Double.random(in: preset.heartRateRange, using: &rng)
             samples.append(HeartRateSample(date: currentDate, value: value, source: "HealthKitExporter"))
@@ -714,7 +726,29 @@ struct SyntheticDataGenerator {
         }
         return samples
     }
-    
+
+    private static func generateRestingHeartRateData(preset: GenerationPreset, startDate: Date, endDate: Date, rng: inout SeededRandomGenerator) -> [RestingHeartRateSample] {
+        var samples: [RestingHeartRateSample] = []
+        var currentDate = startDate
+        let calendar = Calendar.current
+
+        // Resting heart rate is typically calculated daily
+        while currentDate < endDate {
+            // Resting HR is generally lower than average HR
+            let baseValue: Double
+            switch preset {
+            case .lowerStress: baseValue = Double.random(in: 50...60, using: &rng)
+            case .normal: baseValue = Double.random(in: 55...65, using: &rng)
+            case .higherStress: baseValue = Double.random(in: 60...75, using: &rng)
+            case .edgeCases: baseValue = Double.random(in: 40...90, using: &rng)
+            }
+
+            samples.append(RestingHeartRateSample(date: currentDate, value: baseValue, source: "HealthKitExporter"))
+            currentDate = calendar.date(byAdding: .day, value: 1, to: currentDate) ?? currentDate.addingTimeInterval(86400)
+        }
+        return samples
+    }
+
     private static func generateHRVData(preset: GenerationPreset, startDate: Date, endDate: Date, rng: inout SeededRandomGenerator) -> [HRVSample] {
         var samples: [HRVSample] = []
         var currentDate = startDate
