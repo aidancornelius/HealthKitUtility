@@ -66,7 +66,12 @@ public class HealthKitWriter {
             HKObjectType.categoryType(forIdentifier: .mindfulSession)!,
         ]
 
-        try await healthStore.requestAuthorization(toShare: typesToWrite, read: [])
+        // Call requestAuthorization on HKHealthStore directly
+        // (HealthStoreWritable protocol doesn't include this as HKHealthStore has native support)
+        guard let hkStore = healthStore as? HKHealthStore else {
+            throw HealthKitError.operationFailed("requestAuthorization requires HKHealthStore")
+        }
+        try await hkStore.requestAuthorization(toShare: typesToWrite, read: [])
         #else
         throw HealthKitError.simulatorOnly
         #endif
