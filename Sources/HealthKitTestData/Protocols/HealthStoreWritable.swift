@@ -16,19 +16,15 @@ import HealthKit
 ///
 /// This protocol allows host apps to control the authorisation flow and enables
 /// testing with mock implementations without requiring actual HealthKit access.
+///
+/// Note: requestAuthorization is not included in this protocol as HKHealthStore
+/// already provides native async/await support for authorization.
 @available(iOS 18.0, *)
 public protocol HealthStoreWritable: Sendable {
     /// Save samples to HealthKit
     /// - Parameter samples: The samples to save
     /// - Throws: HealthKit errors if the save operation fails
     func save(_ samples: [HKSample]) async throws
-
-    /// Request authorisation to share and read health data
-    /// - Parameters:
-    ///   - toShare: Sample types the app wants to write
-    ///   - read: Object types the app wants to read
-    /// - Throws: HealthKit errors if authorisation fails
-    func requestAuthorization(toShare: Set<HKSampleType>, read: Set<HKObjectType>) async throws
 }
 
 // MARK: - HKHealthStore conformance
@@ -49,8 +45,5 @@ extension HKHealthStore: HealthStoreWritable {
             }
         }
     }
-
-    // Note: requestAuthorization is provided natively by HealthKit with async/await support
-    // No custom implementation needed - use HKHealthStore's native async method
 }
 #endif
