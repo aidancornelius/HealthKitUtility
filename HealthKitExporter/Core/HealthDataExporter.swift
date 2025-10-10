@@ -174,7 +174,7 @@ class HealthDataExporter: ObservableObject {
         var activity: [ActivitySample] = []
         var sleep: [SleepSample] = []
         var workouts: [WorkoutSample] = []
-        var restingHeartRate: Double? = nil
+        var restingHeartRate: [RestingHeartRateSample] = []
         var respiratoryRate: [RespiratorySample]? = nil
         var bloodOxygen: [OxygenSample]? = nil
         var skinTemperature: [TemperatureSample]? = nil
@@ -192,7 +192,7 @@ class HealthDataExporter: ObservableObject {
         if dataTypes.contains(.heartRate) {
             exportStatus = "Fetching heart rate data..."
             heartRate = try await fetchHeartRate(from: startDate, to: endDate)
-            restingHeartRate = try await fetchRestingHeartRate()
+            restingHeartRate = try await fetchRestingHeartRate(from: startDate, to: endDate)
             currentStep += 1
             exportProgress = Double(currentStep) / Double(totalSteps)
         }
@@ -324,21 +324,26 @@ class HealthDataExporter: ObservableObject {
         }
     }
     
-    private func fetchRestingHeartRate() async throws -> Double? {
+    private func fetchRestingHeartRate(from startDate: Date, to endDate: Date) async throws -> [RestingHeartRateSample] {
         let type = HKQuantityType.quantityType(forIdentifier: .restingHeartRate)!
         let unit = HKUnit.count().unitDivided(by: .minute())
-        let predicate = HKQuery.predicateForSamples(withStart: Date.distantPast, end: Date(), options: .strictStartDate)
-        
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+
         return try await withCheckedThrowingContinuation { continuation in
-            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
             let query = HKSampleQuery(sampleType: type, predicate: predicate,
-                                     limit: 1, sortDescriptors: [sort]) { _, samples, error in
+                                     limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, error in
                 if let error = error {
                     continuation.resume(throwing: error)
-                } else if let sample = samples?.first as? HKQuantitySample {
-                    continuation.resume(returning: sample.quantity.doubleValue(for: unit))
                 } else {
-                    continuation.resume(returning: nil)
+                    let restingHRSamples = (samples as? [HKQuantitySample] ?? []).map { sample in
+                        RestingHeartRateSample(
+                            date: sample.startDate,
+                            value: sample.quantity.doubleValue(for: unit),
+                            source: sample.sourceRevision.source.name
+                        )
+                    }
+                    continuation.resume(returning: restingHRSamples)
                 }
             }
             healthStore.execute(query)
@@ -618,7 +623,15 @@ class HealthDataExporter: ObservableObject {
             processedSamples += bundle.heartRate.count
             importProgress = Double(processedSamples) / Double(totalSamples)
         }
-        
+
+        // Import resting heart rate data
+        if !bundle.restingHeartRate.isEmpty {
+            importStatus = "Importing resting heart rate data..."
+            try await importRestingHeartRateSamples(bundle.restingHeartRate)
+            processedSamples += bundle.restingHeartRate.count
+            importProgress = Double(processedSamples) / Double(totalSamples)
+        }
+
         // Import HRV data
         if !bundle.hrv.isEmpty {
             importStatus = "Importing HRV data..."
@@ -709,7 +722,7 @@ class HealthDataExporter: ObservableObject {
     private func importHeartRateSamples(_ samples: [HeartRateSample]) async throws {
         let type = HKQuantityType.quantityType(forIdentifier: .heartRate)!
         let unit = HKUnit.count().unitDivided(by: .minute())
-        
+
         let hkSamples = samples.map { sample in
             let quantity = HKQuantity(unit: unit, doubleValue: sample.value)
             return HKQuantitySample(
@@ -719,10 +732,34 @@ class HealthDataExporter: ObservableObject {
                 end: sample.date
             )
         }
-        
+
         try await saveSamples(hkSamples)
     }
-    
+
+    private func importRestingHeartRateSamples(_ samples: [RestingHeartRateSample]) async throws {
+        // Resting heart rate might be read-only on physical devices, but should work in simulator
+        let type = HKQuantityType.quantityType(forIdentifier: .restingHeartRate)!
+        let unit = HKUnit.count().unitDivided(by: .minute())
+
+        // Try to import but don't fail if it's read-only
+        do {
+            let hkSamples = samples.map { sample in
+                let quantity = HKQuantity(unit: unit, doubleValue: sample.value)
+                return HKQuantitySample(
+                    type: type,
+                    quantity: quantity,
+                    start: sample.date,
+                    end: sample.date
+                )
+            }
+
+            try await saveSamples(hkSamples)
+        } catch {
+            // Silently skip if we can't write this type
+            print("Could not import resting heart rate: \(error)")
+        }
+    }
+
     private func importHRVSamples(_ samples: [HRVSample]) async throws {
         let type = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
         let unit = HKUnit.secondUnit(with: .milli)
