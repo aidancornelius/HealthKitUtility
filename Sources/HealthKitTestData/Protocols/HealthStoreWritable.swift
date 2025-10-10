@@ -50,16 +50,7 @@ extension HKHealthStore: HealthStoreWritable {
         }
     }
 
-    public func requestAuthorization(toShare: Set<HKSampleType>, read: Set<HKObjectType>) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            self.requestAuthorization(toShare: toShare, read: read) { success, error in
-                if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
-                }
-            }
-        }
-    }
+    // Note: requestAuthorization is provided natively by HealthKit with async/await support
+    // No custom implementation needed - use HKHealthStore's native async method
 }
 #endif
