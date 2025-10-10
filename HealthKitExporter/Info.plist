@@ -2,6 +2,32 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_healthkitstream._tcp</string>
+	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Read your health data to export it for testing and development purposes</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Write synthetic test data to HealthKit in the simulator</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app uses the local network to stream health data between your device and simulator for development and testing purposes.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>processing</string>
@@ -10,11 +36,20 @@
 		<string>audio</string>
 		<string>location</string>
 	</array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>This app uses the local network to stream health data between your device and simulator for development and testing purposes.</string>
-	<key>NSBonjourServices</key>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
 	<array>
-		<string>_healthkitstream._tcp</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 </dict>
 </plist>

@@ -1,141 +1,320 @@
 # HealthKit Utility
 
-A companion app for developers building health apps that need realistic test data in the iOS Simulator.
+A Swift package for generating and importing realistic HealthKit test data in the iOS Simulator.
+
+[![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+[![iOS 18.0+](https://img.shields.io/badge/iOS-18.0+-blue.svg)](https://developer.apple.com/ios/)
+[![SPM Compatible](https://img.shields.io/badge/SPM-compatible-brightgreen.svg)](https://swift.org/package-manager)
 
 ## Why this exists
 
-When you're building a health app, the iOS Simulator can't generate real health data because it doesn't have sensors. You might be testing heart rate visualisations, sleep analysis, or activity tracking, but without real data, you're testing in a vacuum. This makes it hard to catch edge cases, validate UI layouts with actual values, or demonstrate your app to stakeholders.
+When building health apps, the iOS Simulator can't generate real health data because it doesn't have sensors. This package solves that problem by letting you:
 
-This tool bridges that gap. It lets you capture actual health data from your iPhone and Apple Watch, then import it into the Simulator's HealthKit store. You can also generate synthetic data with specific patterns (like stress scenarios or edge cases) to test how your app handles different physiological states.
+- Generate synthetic health data with somewhat realistic patterns (heart rate, HRV, sleep, activity, etc.)
+- Import data into HealthKit in the simulator for testing
+- Use pre-built fixtures for consistent test data across your project/team/whatever
+- Stream live data continuously to test 'real-time' app behaviour
 
-## What it does
+For unit tests, UI tests, and prototyping health features.
 
-The app adapts based on where it's running:
+## Quick start
 
-On physical devices, export your real HealthKit data to JSON files. Stream health data live over your local network to a simulator.
+### 1. Add the package
 
-In the Simulator, import those JSON files into HealthKit. Generate synthetic data continuously with different physiological patterns. Receive live health data from a physical device over your network.
+```swift
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/aidancornelius/HealthKitUtility", from: "1.0.0")
+]
 
-On both, generate synthetic test data with controllable patterns and edge cases. Monitor HealthKit changes in real-time to verify your app is writing data correctly.
+// Your target
+.target(
+    name: "YourApp",
+    dependencies: [
+        .product(name: "HealthKitTestData", package: "HealthKitUtility")
+    ]
+)
+```
+
+### 2. Configure Info.plist
+
+Add this to your `Info.plist`:
+```xml
+<key>NSHealthUpdateUsageDescription</key>
+<string>Write test data to HealthKit for app testing</string>
+```
+
+Enable the HealthKit capability in your Xcode project.
+
+### 3. Generate and import data
+
+```swift
+import HealthKit
+import HealthKitTestData
+
+// Request authorization
+let healthStore = HKHealthStore()
+let types: Set<HKSampleType> = [
+    HKObjectType.quantityType(forIdentifier: .heartRate)!,
+    HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
+]
+try await healthStore.requestAuthorization(toShare: types, read: [])
+
+// Generate 7 days of realistic data
+let bundle = SyntheticDataGenerator.generateHealthData(
+    preset: .normal,              // or .lowerStress, .higherStress, .edgeCases
+    manipulation: .smoothReplace,
+    startDate: Date().addingTimeInterval(-7 * 86400),
+    endDate: Date(),
+    seed: 42                      // For reproducible data
+)
+
+// Import into HealthKit (simulator only)
+let writer = HealthKitWriter(healthStore: healthStore)
+try await writer.importData(bundle)
+
+// Your app now has realistic test data!
+```
 
 ## Features
 
-### Export (physical devices)
+### Generate synthetic data
 
-Captures your actual HealthKit data and saves it to a JSON file. You choose a date range and which metrics to include. Supports heart rate, HRV, steps, distance, calories, sleep stages, workouts, respiratory rate, blood oxygen, skin temperature, wheelchair activity, mindfulness sessions, menstrual data, and mood logs.
+```swift
+// Different stress profiles
+let normalData = SyntheticDataGenerator.generateHealthData(
+    preset: .normal,
+    startDate: weekAgo,
+    endDate: now
+)
 
-Useful when you want to test your app with the kind of messy, real-world data that actual humans generate.
+let stressedData = SyntheticDataGenerator.generateHealthData(
+    preset: .higherStress,  // Higher HR, lower HRV
+    startDate: weekAgo,
+    endDate: now
+)
 
-### Import (simulator)
+let edgeCases = SyntheticDataGenerator.generateHealthData(
+    preset: .edgeCases,     // Extreme values for testing
+    startDate: weekAgo,
+    endDate: now
+)
+```
 
-Takes those exported JSON files and writes them into the Simulator's HealthKit database. Includes automatic date transposition, so if you exported data from last week, it can shift everything forward so it ends today. This is helpful when testing features that care about recency.
+### Use fixtures
 
-### Generate
+**Note**: `HealthKitTestHelpers` is for **test targets only**. Don't import it in production code - it bundles JSON fixture files that increase app size.
 
-Creates synthetic health data with controllable characteristics. You can:
+```swift
+// In your test target Package.swift:
+.testTarget(
+    name: "YourAppTests",
+    dependencies: [
+        .product(name: "HealthKitTestHelpers", package: "HealthKitUtility")
+    ]
+)
 
-- Apply patterns to real data (stable, trending, spiky) to test different scenarios
-- Generate completely new datasets with stress presets (normal, stressed, extreme events, edge cases)
-- Convert step data to wheelchair pushes for accessibility testing
-- Set a random seed for reproducible test data
+// In your test code:
+import HealthKitTestHelpers
 
-Useful for automated testing where you need consistent, predictable data.
+// Available fixtures:
+let normal = HealthKitFixtures.normalWeek          // 7 days, normal health (HR 60-80, HRV 30-70)
+let highStress = HealthKitFixtures.highStressWeek  // 7 days, elevated stress (HR 80-100, HRV 20-40)
+let lowStress = HealthKitFixtures.lowStressWeek    // 7 days, optimal health (HR 55-70, HRV 45-80)
+let cycle = HealthKitFixtures.cycleTracking        // 28 days with menstrual flow tracking
+let edges = HealthKitFixtures.edgeCases            // 7 days with extreme values
+let active = HealthKitFixtures.activeLifestyle     // 7 days, athletic with multiple daily workouts
 
-### Live generate (simulator)
+// Use any fixture
+try await writer.importData(HealthKitFixtures.normalWeek)
+```
 
-Continuously generates health data in real-time, simulating what a real device does. Choose scenarios like normal activity, workouts, sleep, or stress, and it generates samples at regular intervals in the background (even when the app is backgrounded, using silent audio playback and background tasks). Includes Live Activities to show streaming status on your lock screen.
+### Stream data continuously
 
-Helpful when testing apps that respond to ongoing health data, like meditation apps tracking heart rate during a session.
+```swift
+// Generate data every 60 seconds
+let config = LiveGenerationConfig(
+    preset: .normal,
+    samplingInterval: 60
+)
 
-### Network stream
+let loop = LiveDataLoop(config: config, writer: writer)
+try await loop.start()
 
-Enables real-time streaming between a physical device and the Simulator over your local network:
+// ... data streams continuously ...
 
-- On the device broadcasts live HealthKit data as it's generated
-- In the Simulator discovers nearby devices and receives that data, automatically writing it to HealthKit
+loop.stop()
+```
 
-This is particularly useful when you want to test your app's behaviour with real sensor data without constantly exporting and importing files. The Simulator receives actual heart rate readings from your Apple Watch as they happen.
+### Transpose dates
 
-### Monitor
-
-Shows a live log of all HealthKit changes, so you can verify that your app is writing data correctly. Displays what type of data changed, the values, and the source. Useful for debugging when you're not sure if your HealthKit writes are actually working.
+```swift
+// Shift historical data to current dates
+let oldData = try loadFromFile("last-week.json")
+let currentData = DateTransformation.transposeBundleDatesToToday(oldData)
+try await writer.importData(currentData)
+```
 
 ## Supported data types
 
-Heart rate, heart rate variability, steps, walking/running distance, active calories, sleep analysis (including core/deep/REM if available), workouts, respiratory rate, blood oxygen, skin temperature, wheelchair pushes and distance, exercise minutes, body temperature, menstrual flow, mindfulness sessions, and state of mind (iOS 18+).
+- Heart rate & resting heart rate
+- Heart rate variability (HRV)
+- Activity (steps, distance, calories)
+- Sleep analysis (light, deep, REM)
+- Workouts
+- Respiratory rate
+- Blood oxygen
+- Body temperature
+- Wheelchair activity
+- Menstrual flow
+- And more
 
-Some metrics are read-only in HealthKit (resting heart rate, skin temperature) so they can't be imported, but everything else works.
+## Testing with the package
+
+```swift
+import XCTest
+@testable import YourApp
+import HealthKitTestData
+
+class HealthFeatureTests: XCTestCase {
+    func testHeartRateProcessing() async throws {
+        // Use mock store for testing
+        let mockStore = MockHealthStore()
+        let writer = HealthKitWriter(healthStore: mockStore)
+
+        // Generate test data
+        let bundle = SyntheticDataGenerator.generateHealthData(
+            preset: .normal,
+            startDate: Date().addingTimeInterval(-3600),
+            endDate: Date(),
+            seed: 42  // Reproducible!
+        )
+
+        try await writer.importData(bundle)
+
+        // Test your app's logic
+        let processor = HeartRateProcessor()
+        let result = try await processor.analyze(bundle.heartRate)
+
+        XCTAssertEqual(result.average, 70, accuracy: 5)
+    }
+}
+```
+
+## Documentation
+
+- [Integration guide](INTEGRATION.md) - Setup, entitlements, and advanced usage
+- [Contributing](CONTRIBUTING.md) - Contributing and migrating code from the main app
 
 ## Requirements
 
-- iOS 18.5 or later (can probably lower this, untested)
-- Xcode 16 or later
-- HealthKit entitlements configured
-- For network streaming: devices on the same local network
+- iOS 18.0+
+- Swift 6.0+
+- Xcode 16.0+
+- iOS Simulator (for importing data - HealthKit write restrictions should prevent imports on physical devices)
 
-## Setup
+## What's in the box
 
-1. Open `HealthKitExporter.xcodeproj` in Xcode
-2. Select your development team in project settings
-3. Build and run on a physical device or simulator
+### HealthKitTestData (core library)
 
-The app will request HealthKit permissions when it first launches. Grant read access for any data types you want to export, and write access (on simulator) for any you want to import.
+- `SyntheticDataGenerator` - Generate realistic health data
+- `HealthKitWriter` - Import data into HealthKit (simulator only)
+- `LiveDataLoop` - Continuously generate and stream data
+- `DateTransformation` - Transpose historical data to current dates
+- All health data models (`HeartRateSample`, `HRVSample`, etc.)
 
-## How to use it
+### HealthKitTestHelpers (test utilities) ⚠️ TEST-ONLY
 
-**Basic workflow for testing with real data:**
+Test targets only, contains JSON fixtures that shouldn't ship in production.
 
-1. Run the app on your physical iPhone
-2. Go to the Export tab, select a date range and data types
-3. Export to a JSON file and save it (AirDrop to your Mac, save to Files, etc.)
-4. Run your app-in-development in the Simulator
-5. Open HealthKit Utility in the Simulator
-6. Go to the Import tab, load that JSON file
-7. Import it into HealthKit (with date transposition enabled if you want recent data)
-8. Your app now has realistic test data to work with
+- `HealthKitFixtures` - Pre-built test data bundles:
+  - `normalWeek` - 7 days of typical health data
+  - `highStressWeek` - 7 days with elevated stress markers
+  - `lowStressWeek` - 7 days of optimal health
+  - `cycleTracking` - 28-day menstrual cycle with flow tracking
+  - `edgeCases` - 7 days with extreme values for edge case testing
+  - `activeLifestyle` - 7 days of athletic lifestyle with multiple workouts
 
-**For testing with live streaming:**
+## Example: UI test
 
-1. Make sure your iPhone and Mac are on the same local network
-2. Run HealthKit Utility on your iPhone, go to Network stream tab
-3. Start the server (grant local network permission if prompted)
-4. In the Simulator, run HealthKit Utility and go to Network stream
-5. Start discovery, select your iPhone from the list
-6. Connect, and you'll start receiving live health data
-7. Your app in the Simulator can now read real-time data as it streams in
+```swift
+import XCTest
+import HealthKitTestHelpers
 
-**For synthetic data generation:**
+class HeartRateChartUITests: XCTestCase {
+    func testChartDisplaysData() async throws {
+        let app = XCUIApplication()
 
-1. Open the Generate tab
-2. Choose whether to transform existing data or generate new synthetic data
-3. Select a stress preset (normal, high stress, extreme events, edge cases)
-4. Set your target date range
-5. Generate and export the JSON file
-6. Import into the Simulator as above
+        // Populate simulator HealthKit
+        let bundle = HealthKitFixtures.normalWeek
+        try await writer.importData(bundle)
 
-## Notes
+        app.launch()
 
-- The app hides incompatible features (you can't import on a physical device because HealthKit won't let apps write to real users' health data outside of specific contexts)
-- There's a developer override mode in Settings that shows all features everywhere, useful if you need to test the full interface on one device, or, you know to break things
-- Live generation uses aggressive background processing techniques (silent audio, background tasks, Live Activities) to keep running when backgrounded
-- Network streaming automatically handles service discovery via Bonjour and includes verification that data was actually saved to HealthKit
-
-## Use cases
-
-- Testing how your app handles real physiological patterns (heart rate variability during stress, sleep stage transitions)
-- Automated UI testing with reproducible synthetic data
-- Demonstrating your app to stakeholders with realistic data
-- Testing edge cases (very high heart rate, irregular HRV, sparse data with gaps)
-- Accessibility testing with wheelchair activity data
-- Debugging HealthKit writes by monitoring what actually gets saved
-
-## Project structure
-
-- `HealthKitExporter/Core/`: Core managers (ExportManager, HealthDataExporter, LiveStreamManager, NetworkStreamingManager, HealthDataMonitor)
-- `HealthKitExporter/Views/`: SwiftUI views for each tab
-- `HealthKitExporter/Models/`: Data models matching HealthKit types
-- `HealthKitExporterWidgets/`: Live Activity widgets for streaming status
+        // Verify chart renders with data
+        XCTAssertTrue(app.images["HeartRateChart"].exists)
+    }
+}
+```
 
 ## License
 
-This is a development tool, built for developers. Use it however it's helpful. Available under MIT. Would love to be pinged if it helps you! 
+MIT License - See [LICENSE](LICENSE) for details.
+
+## Acknowledgments
+
+Built by [Aidan Cornelius-Bell](https://github.com/aidancornelius) to make health app testing less painful.
+
+## Development
+
+This repository contains the Swift package and the HealthKit Utility companion app.
+
+### Package development
+
+Work directly in `Sources/` and `Tests/`:
+
+```bash
+# Run tests
+swift test
+
+# Or use Xcode
+open Package.swift
+```
+
+### App development
+
+The app (now) uses XcodeGen to generate the Xcode project from `project.yml`.
+
+**First time:**
+
+1. Install XcodeGen:
+   ```bash
+   brew install xcodegen
+   ```
+
+2. Generate the Xcode project:
+   ```bash
+   ./generate_project.sh
+   ```
+
+3. Open the generated project:
+   ```bash
+   open HealthKitExporter.xcodeproj
+   ```
+
+**After pulling changes:**
+
+If `project.yml` has been updated, regenerate the project:
+```bash
+./generate_project.sh
+```
+
+**When making changes:**
+
+- Don't edit `.xcodeproj` directly (it's gitignored and regenerated)
+- Edit `project.yml` for project configuration changes
+- Edit source files normally in Xcode
+
+## Related
+
+This package is extracted from the HealthKit Utility app (included in this repo), which provides a full GUI for exporting real device data, network streaming, and live generation with background tasks.
