@@ -13,7 +13,6 @@ let package = Package(
         // ✅ Safe to use in main app targets
         .library(
             name: "HealthKitTestData",
-            type: .dynamic,
             targets: ["HealthKitTestData"]
         ),
 
